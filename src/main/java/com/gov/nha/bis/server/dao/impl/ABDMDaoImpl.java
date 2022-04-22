@@ -672,17 +672,32 @@ public class ABDMDaoImpl implements ABDMDao{
 			
 			if(req.getState_code()!="")
 			{
-				where =" and state_code='"+req.getState_code()+"'";		
+				where =" and a.state_code='"+req.getState_code()+"'";		
 			}
 			
 			
 			if(req.getOrigin()!="")
 			{
+				/*
 				sql="select sum(a.hid_linked_count) as value,a.hospital_name as text from(\r\n"
 						+ "select\r\n"
 						+ "hid_linked_count,\r\n"
 						+ "case when hospital_name is not null then hospital_name else hospitalid end as hospital_name\r\n"
-						+ "from dashboard_data.healthid_hospital_linked where origin='"+req.getOrigin()+"' "+where+")a  group by a.hospital_name order by sum(a.hid_linked_count) desc";
+						+ "from dashboard_data.healthid_hospital_linked where origin='"+req.getOrigin()+"'  "+where+")a  group by a.hospital_name order by sum(a.hid_linked_count) desc";
+						*/
+				sql="select hid_linked_count as value,\r\n"
+						+ "case when d.state_code='0' then d.hospital_name \r\n"
+						+ "else CONCAT(d.hospital_name,'\n (',d.state_name,' : ',d.district_name,')') end as text from(\r\n"
+						+ "select sum(c.hid_linked_count) as hid_linked_count,c.hospital_name as hospital_name,c.state_name,c.district_name,c.state_code from(\r\n"
+						+ "select\r\n"
+						+ "a.hid_linked_count,\r\n"
+						+ "case when a.hospital_name is not null then a.hospital_name else a.hospitalid end as hospital_name\r\n"
+						+ ",b.state_name,b.district_name\r\n"
+						+ ",a.state_code\r\n"
+						+ "from dashboard_data.healthid_hospital_linked a,dashboard_data.state_district_master b\r\n"
+						+ "where a.state_code::integer=b.state_code and a.district_code=b.district_code and  a.origin='"+req.getOrigin()+"' "+where+"\r\n"
+						+ ")c group by c.hospital_name,c.state_name,c.district_name,c.state_code) d order by d.hid_linked_count desc\r\n"
+						+ "";
 				
 			}
 	
@@ -729,18 +744,18 @@ public class ABDMDaoImpl implements ABDMDao{
 			
 			if(req.getType()!="")
 			{
-				sql="select a.name as text,a.total as value,a.origin from(\r\n"
-						+ "select case when partner_name='NHA Face Auth' then 'PMJAY ( BIS2.0)' else partner_name end as name,\r\n"
+				sql="select case when a.name='NIC' then 'eHospital-NIC' else a.name end  as text,a.total as value,a.origin from(\r\n"
+						+ "select partner_name as name,\r\n"
 						+ "sum(hid_linked_count) as total\r\n"
 						+ ",sum(hid_linked_count) as tt\r\n"
 						+ ",origin\r\n"
-						+ "from dashboard_data.healthid_linked where partner_name is not null "+where+"\r\n"
+						+ "from dashboard_data.healthid_linked_count where partner_name is not null "+where+" \r\n"
 						+ "group by partner_name,origin ) a order by tt desc";
 				
 			}
 	
 			
-			System.out.println(sql);		
+			//System.out.println(sql);		
 			List<Map<String , Object>> list=jdbcTemplate.queryForList(sql);	
 			
 			//System.out.println(list);
